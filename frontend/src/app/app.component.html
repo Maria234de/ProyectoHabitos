@@ -1,0 +1,89 @@
+<div class="zen-layout">
+  <div class="zen-container">
+    
+    <!-- Encabezado -->
+    <header class="zen-header">
+      <div class="brand">
+        <span class="status-indicator"></span>
+        <h1 class="app-title">Hábitos</h1>
+      </div>
+
+      <!-- Métricas Circulares Superiores -->
+      <div class="header-metrics" *ngIf="habits.length > 0">
+        <div class="metric-circle" title="Promedio de cumplimiento global">
+          <span class="circle-value">{{ getGlobalAverage() }}%</span>
+          <span class="circle-label">PROMEDIO</span>
+        </div>
+
+        <div class="metric-circle" title="Hábitos completados hoy">
+          <span class="circle-value">{{ getCompletedTodayCount() }}/{{ habits.length }}</span>
+          <span class="circle-label">HOY</span>
+        </div>
+      </div>
+
+      <!-- Formulario para agregar -->
+      <div class="search-bar">
+        <input 
+          type="text" 
+          [(ngModel)]="newHabitTitle" 
+          placeholder="Escribe un nuevo hábito..." 
+          class="zen-input"
+          (keyup.enter)="addHabit()"
+        />
+        <button (click)="addHabit()" class="zen-btn-add">
+          Añadir
+        </button>
+      </div>
+    </header>
+
+    <!-- Lista de Hábitos -->
+    <main class="zen-grid" *ngIf="habits.length > 0; else emptyState">
+      <article class="zen-card" *ngFor="let habit of habits">
+        
+        <!-- Info del Hábito -->
+        <div class="card-header">
+          <div class="header-info">
+            <h2 class="habit-title">{{ habit.name }}</h2>
+            <div class="stats-row">
+              <span class="badge">{{ habit.performancePercentage || 0 }}%</span>
+              <span class="count">{{ getCompletedCount(habit) }} de 30 días</span>
+            </div>
+          </div>
+          
+          <button (click)="deleteHabit(habit.id)" class="zen-btn-delete" title="Borrar">
+            ✕
+          </button>
+        </div>
+
+        <!-- Barra de Progreso -->
+        <div class="progress-track">
+          <div class="progress-fill" [style.width.%]="habit.performancePercentage || 0"></div>
+        </div>
+
+        <!-- Matriz de 30 Días (Limpia, solo fecha) -->
+        <div class="days-matrix">
+          <button 
+            *ngFor="let log of habit.logs; let i = index" 
+            class="day-pill"
+            [class.completed]="log.completed"
+            [class.today]="isToday(log.date)"
+            (click)="toggleLog(habit.id, i)"
+            [title]="formatDate(log.date)"
+          >
+            <span class="day-num">{{ formatDate(log.date) }}</span>
+          </button>
+        </div>
+
+      </article>
+    </main>
+
+    <!-- Estado Vacío -->
+    <ng-template #emptyState>
+      <div class="zen-empty">
+        <div class="empty-dot"></div>
+        <p>Todo en calma. Añade un hábito para comenzar tu rutina.</p>
+      </div>
+    </ng-template>
+
+  </div>
+</div>
