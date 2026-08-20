@@ -23,9 +23,42 @@ export class AppComponent implements OnInit {
 
   loadHabits(): void {
     this.habitService.getHabits().subscribe({
-      next: (data) => this.habits = data,
+      next: (data: any[]) => {
+        // Mapeamos los hábitos para asegurar que tengan siempre un array de 30 días
+        this.habits = data.map(habit => {
+          const generatedLogs = this.generate30DaysLogs(habit.habit_logs || []);
+          const completedCount = generatedLogs.filter(l => l.completed).length;
+          
+          return {
+            ...habit,
+            logs: generatedLogs,
+            performancePercentage: Math.round((completedCount / 30) * 100)
+          };
+        });
+      },
       error: (err) => console.error('Error al cargar hábitos:', err)
     });
+  }
+
+  // Genera los últimos 30 días y cruza con los guardados en Supabase
+  generate30DaysLogs(savedLogs: any[]): Log[] {
+    const logs: Log[] = [];
+    const today = new Date();
+
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(today.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+
+      // Busca si el día ya fue marcado en la base de datos de Supabase
+      const match = savedLogs.find(l => l.log_date && l.log_date.startsWith(dateStr));
+
+      logs.push({
+        date: dateStr,
+        completed: match ? match.completed : false
+      } as Log);
+    }
+    return logs;
   }
 
   addHabit(): void {
@@ -40,27 +73,26 @@ export class AppComponent implements OnInit {
     });
   }
 
-  // LÓGICA DE TOGGLE CON CONVERSIÓN A STRING (Evita error ts(2345))
-toggleLog(habitId: number | undefined, dayIndex: number): void {
+  toggleLog(habitId: number | undefined, dayIndex: number): void {
     if (habitId === undefined) return;
 
     const habit = this.habits.find(h => h.id === habitId);
     if (habit && habit.logs && habit.logs[dayIndex]) {
       const selectedLog = habit.logs[dayIndex];
       
-      // 1. Invertir estado visual
+      // 1. Invertir estado en la interfaz
       selectedLog.completed = !selectedLog.completed;
 
       // 2. Recalcular porcentaje local
       const completedCount = habit.logs.filter((l: Log) => l.completed).length;
       habit.performancePercentage = Math.round((completedCount / 30) * 100);
 
-      // 3. Enviar la FECHA REAL (selectedLog.date) que exige tu C# ToggleLogDto
+      // 3. Guardar directamente en Supabase
       this.habitService.toggleDay(habitId, selectedLog.date, selectedLog.completed).subscribe({
         next: () => {},
         error: (err) => {
           console.error('Error al guardar día:', err);
-          // Revertir si la API responde con error
+          // Revertir si falla
           selectedLog.completed = !selectedLog.completed;
           const rollbackCount = habit.logs ? habit.logs.filter((l: Log) => l.completed).length : 0;
           habit.performancePercentage = Math.round((rollbackCount / 30) * 100);
